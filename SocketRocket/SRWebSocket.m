@@ -225,6 +225,7 @@ typedef void (^data_callback)(SRWebSocket *webSocket,  NSData *data);
 
 - (void)_initializeStreams;
 - (void)_connect;
+- (void)_applyConnectionTimeout:(NSTimeInterval)timeoutInterval;
 
 @property (nonatomic) SRReadyState readyState;
 
@@ -420,7 +421,22 @@ static __strong NSData *CRLFCRLF;
 
     _selfRetain = self;
     
+    if (_urlRequest.timeoutInterval > 0)
+    {
+        [self _applyConnectionTimeout:_urlRequest.timeoutInterval];
+    }
+
     [self _connect];
+}
+
+- (void)_applyConnectionTimeout:(NSTimeInterval)timeoutInterval {
+
+    dispatch_time_t popTime = dispatch_time(DISPATCH_TIME_NOW, timeoutInterval * NSEC_PER_SEC);
+    dispatch_after(popTime, dispatch_get_main_queue(), ^(void){
+        if (self.readyState == SR_CONNECTING)
+            [self _failWithError:[NSError errorWithDomain:@"org.lolrus.SocketRocket" code:60 userInfo:@{NSLocalizedDescriptionKey: @"Timeout Connecting to Server"}]];
+    });
+
 }
 
 // Calls block on delegate queue
